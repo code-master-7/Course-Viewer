@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Folder Video Player</title>
+  <style>
+    #videoContainer video {
+      width: 300px;
+      height: 300px;
+    }
+
+    #notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      background-color: #28a745;
+      color: white;
+      border-radius: 5px;
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <input type="file" id="folderInput" webkitdirectory directory multiple>
+  <p id="fileName"></p>
+  <p id="videoNumber"></p>
+  <p id="prevVideoLength"></p>
+  <p id="currentVideoLength"></p>
+  <p id="nextVideoLength"></p>
+  <button id="prevButton" disabled>Previous</button>
+  <button id="nextButton" disabled>Next</button>
+  <button id="copyButton" disabled>Copy Name</button>
+  <div id="videoContainer"></div>
+  <div id="notification">Copied!</div>
+
+  <script>
+    const folderInput = document.getElementById('folderInput');
+    const fileNameDisplay = document.getElementById('fileName');
+    const videoNumberDisplay = document.getElementById('videoNumber');
+    const prevVideoLengthDisplay = document.getElementById('prevVideoLength');
+    const currentVideoLengthDisplay = document.getElementById('currentVideoLength');
+    const nextVideoLengthDisplay = document.getElementById('nextVideoLength');
+    const prevButton = document.getElementById('prevButton');
+    const nextButton = document.getElementById('nextButton');
+    const copyButton = document.getElementById('copyButton');
+    const videoContainer = document.getElementById('videoContainer');
+    const notification = document.getElementById('notification');
+
+    let videoFiles = [];
+    let currentIndex = -1;
+
+    folderInput.addEventListener('change', function (event) {
+      const files = Array.from(event.target.files);
+      videoFiles = files.filter(file => file.type.startsWith('video/'));
+      if (videoFiles.length > 0) {
+        currentIndex = 0;
+        updateUI();
+      }
+    });
+
+    prevButton.addEventListener('click', function () {
+      if (currentIndex > 0) {
+        currentIndex--;
+        updateUI();
+      }
+    });
+
+    nextButton.addEventListener('click', function () {
+      if (currentIndex < videoFiles.length - 1) {
+        currentIndex++;
+        updateUI();
+      }
+    });
+
+    copyButton.addEventListener('click', function () {
+      if (videoFiles.length > 0) {
+        const fileNameWithoutExtension = getFileNameWithoutExtension(videoFiles[currentIndex].name);
+        copyToClipboard(fileNameWithoutExtension);
+        showNotification(`Copied: ${fileNameWithoutExtension}`);
+      }
+    });
+
+    function updateUI() {
+      if (videoFiles.length > 0) {
+        const file = videoFiles[currentIndex];
+        fileNameDisplay.textContent = `Selected file name: ${file.name}`;
+        videoNumberDisplay.textContent = `Video ${currentIndex + 1} of ${videoFiles.length}`;
+
+        const filePath = URL.createObjectURL(file);
+        videoContainer.innerHTML = ''; // Clear previous video
+        const videoElement = document.createElement('video');
+        videoElement.src = filePath;
+        videoElement.controls = true;
+        videoElement.style.width = '300px';
+        videoElement.style.height = '300px';
+        videoContainer.appendChild(videoElement);
+
+        videoElement.addEventListener('loadedmetadata', function () {
+          currentVideoLengthDisplay.textContent = `Current video length: ${formatTime(videoElement.duration)}`;
+          if (currentIndex > 0) {
+            const prevVideoPath = URL.createObjectURL(videoFiles[currentIndex - 1]);
+            getVideoLength(prevVideoPath, length => {
+              prevVideoLengthDisplay.textContent = `Previous video length: ${formatTime(length)}`;
+            });
+          } else {
+            prevVideoLengthDisplay.textContent = '';
+          }
+          if (currentIndex < videoFiles.length - 1) {
+            const nextVideoPath = URL.createObjectURL(videoFiles[currentIndex + 1]);
+            getVideoLength(nextVideoPath, length => {
+              nextVideoLengthDisplay.textContent = `Next video length: ${formatTime(length)}`;
+            });
+          } else {
+            nextVideoLengthDisplay.textContent = '';
+          }
+        });
+
+        prevButton.disabled = currentIndex === 0;
+        nextButton.disabled = currentIndex === videoFiles.length - 1;
+        copyButton.disabled = false;
+
+        // Auto play the next video when the current video ends
+        videoElement.addEventListener('ended', function () {
+          if (currentIndex < videoFiles.length - 1) {
+            currentIndex++;
+            updateUI();
+          }
+        });
+      } else {
+        fileNameDisplay.textContent = '';
+        videoNumberDisplay.textContent = '';
+        prevVideoLengthDisplay.textContent = '';
+        currentVideoLengthDisplay.textContent = '';
+        nextVideoLengthDisplay.textContent = '';
+        videoContainer.innerHTML = '';
+        prevButton.disabled = true;
+        nextButton.disabled = true;
+        copyButton.disabled = true;
+      }
+    }
+
+    function getFileNameWithoutExtension(fileName) {
+      return fileName.split('.').slice(0, -1).join('.');
+    }
+
+    function copyToClipboard(text) {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+    }
+
+    function showNotification(message) {
+      notification.textContent = message;
+      notification.style.display = 'block';
+      setTimeout(() => {
+        notification.style.display = 'none';
+      }, 2000);
+    }
+
+    function formatTime(seconds) {
+      const minutes = Math.floor(seconds / 60);
+      seconds = Math.floor(seconds % 60);
+      return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+    }
+
+    function getVideoLength(filePath, callback) {
+      const tempVideo = document.createElement('video');
+      tempVideo.src = filePath;
+      tempVideo.addEventListener('loadedmetadata', function () {
+        callback(tempVideo.duration);
+      });
+    }
+  </script>
+</body>
+
+</html>
