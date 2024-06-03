@@ -34,6 +34,8 @@
   <button id="prevButton" disabled>Previous</button>
   <button id="nextButton" disabled>Next</button>
   <button id="copyButton" disabled>Copy Name</button>
+  <input type="number" id="jumpToInput" min="1" placeholder="Enter video number">
+  <button id="jumpToButton">Jump To</button>
   <div id="videoContainer"></div>
   <div id="notification">Copied!</div>
 
@@ -47,6 +49,8 @@
     const prevButton = document.getElementById('prevButton');
     const nextButton = document.getElementById('nextButton');
     const copyButton = document.getElementById('copyButton');
+    const jumpToInput = document.getElementById('jumpToInput');
+    const jumpToButton = document.getElementById('jumpToButton');
     const videoContainer = document.getElementById('videoContainer');
     const notification = document.getElementById('notification');
 
@@ -81,6 +85,16 @@
         const fileNameWithoutExtension = getFileNameWithoutExtension(videoFiles[currentIndex].name);
         copyToClipboard(fileNameWithoutExtension);
         showNotification(`Copied: ${fileNameWithoutExtension}`);
+      }
+    });
+
+    jumpToButton.addEventListener('click', function () {
+      const jumpToIndex = parseInt(jumpToInput.value) - 1;
+      if (jumpToIndex >= 0 && jumpToIndex < videoFiles.length) {
+        currentIndex = jumpToIndex;
+        updateUI();
+      } else {
+        showNotification('Invalid video number');
       }
     });
 
