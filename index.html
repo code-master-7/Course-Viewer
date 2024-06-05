@@ -37,6 +37,7 @@
   <button id="copyButton" disabled>Copy Name</button>
   <input type="number" id="jumpToInput" min="1" placeholder="Enter video number">
   <button id="jumpToButton">Jump To</button>
+  <button id="pipButton" disabled>Picture-in-Picture</button>
   <div id="videoContainer"></div>
   <div id="notification">Copied!</div>
 
@@ -53,12 +54,14 @@
     const copyButton = document.getElementById('copyButton');
     const jumpToInput = document.getElementById('jumpToInput');
     const jumpToButton = document.getElementById('jumpToButton');
+    const pipButton = document.getElementById('pipButton');
     const videoContainer = document.getElementById('videoContainer');
     const notification = document.getElementById('notification');
 
     let videoFiles = [];
     let currentIndex = -1;
     let totalDuration = 0;
+    let currentVideoElement = null;
 
     folderInput.addEventListener('change', function (event) {
       const files = Array.from(event.target.files);
@@ -102,6 +105,14 @@
       }
     });
 
+    pipButton.addEventListener('click', function () {
+      if (currentVideoElement) {
+        currentVideoElement.requestPictureInPicture().catch(error => {
+          console.error('Error entering Picture-in-Picture mode:', error);
+        });
+      }
+    });
+
     function updateUI() {
       if (videoFiles.length > 0) {
         const file = videoFiles[currentIndex];
@@ -116,6 +127,8 @@
         videoElement.style.width = '300px';
         videoElement.style.height = '300px';
         videoContainer.appendChild(videoElement);
+
+        currentVideoElement = videoElement; // Update current video element
 
         videoElement.addEventListener('loadedmetadata', function () {
           currentVideoLengthDisplay.textContent = `Current video length: ${formatTime(videoElement.duration)}`;
@@ -140,6 +153,7 @@
         prevButton.disabled = currentIndex === 0;
         nextButton.disabled = currentIndex === videoFiles.length - 1;
         copyButton.disabled = false;
+        pipButton.disabled = false;
 
         // Auto play the next video when the current video ends
         videoElement.addEventListener('ended', function () {
@@ -158,6 +172,7 @@
         prevButton.disabled = true;
         nextButton.disabled = true;
         copyButton.disabled = true;
+        pipButton.disabled = true;
       }
     }
 
