@@ -31,6 +31,7 @@
   <p id="prevVideoLength"></p>
   <p id="currentVideoLength"></p>
   <p id="nextVideoLength"></p>
+  <p id="totalVideoLength"></p>
   <button id="prevButton" disabled>Previous</button>
   <button id="nextButton" disabled>Next</button>
   <button id="copyButton" disabled>Copy Name</button>
@@ -46,6 +47,7 @@
     const prevVideoLengthDisplay = document.getElementById('prevVideoLength');
     const currentVideoLengthDisplay = document.getElementById('currentVideoLength');
     const nextVideoLengthDisplay = document.getElementById('nextVideoLength');
+    const totalVideoLengthDisplay = document.getElementById('totalVideoLength');
     const prevButton = document.getElementById('prevButton');
     const nextButton = document.getElementById('nextButton');
     const copyButton = document.getElementById('copyButton');
@@ -56,12 +58,14 @@
 
     let videoFiles = [];
     let currentIndex = -1;
+    let totalDuration = 0;
 
     folderInput.addEventListener('change', function (event) {
       const files = Array.from(event.target.files);
       videoFiles = files.filter(file => file.type.startsWith('video/'));
       if (videoFiles.length > 0) {
         currentIndex = 0;
+        calculateTotalDuration();
         updateUI();
       }
     });
@@ -157,6 +161,21 @@
       }
     }
 
+    function calculateTotalDuration() {
+      totalDuration = 0;
+      let loadedVideos = 0;
+      videoFiles.forEach(file => {
+        const filePath = URL.createObjectURL(file);
+        getVideoLength(filePath, length => {
+          totalDuration += length;
+          loadedVideos++;
+          if (loadedVideos === videoFiles.length) {
+            totalVideoLengthDisplay.textContent = `Total video length: ${formatTime(totalDuration)}`;
+          }
+        });
+      });
+    }
+
     function getFileNameWithoutExtension(fileName) {
       return fileName.split('.').slice(0, -1).join('.');
     }
@@ -179,9 +198,10 @@
     }
 
     function formatTime(seconds) {
-      const minutes = Math.floor(seconds / 60);
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
       seconds = Math.floor(seconds % 60);
-      return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+      return `${hours}:${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
     }
 
     function getVideoLength(filePath, callback) {
