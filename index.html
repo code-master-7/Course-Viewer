@@ -21,6 +21,17 @@
       border-radius: 5px;
       display: none;
     }
+
+    #videoContainer {
+      width: 100%;
+      max-width: 600px;
+      margin: 10px 0;
+    }
+
+    #videoContainer video {
+      width: 100%;
+      height: auto;
+    }
   </style>
 </head>
 
@@ -100,6 +111,8 @@
       if (jumpToIndex >= 0 && jumpToIndex < videoFiles.length) {
         currentIndex = jumpToIndex;
         updateUI();
+        jumpToInput.value = '';
+        jumpToInput.blur();
       } else {
         showNotification('Invalid video number');
       }
@@ -124,8 +137,7 @@
         const videoElement = document.createElement('video');
         videoElement.src = filePath;
         videoElement.controls = true;
-        videoElement.style.width = '300px';
-        videoElement.style.height = '300px';
+
         videoContainer.appendChild(videoElement);
 
         currentVideoElement = videoElement; // Update current video element
