@@ -1,244 +1,286 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Folder Video Player</title>
-  <style>
-    #videoContainer video {
-      width: 300px;
-      height: 300px;
-    }
-
-    #notification {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      padding: 10px 20px;
-      background-color: #28a745;
-      color: white;
-      border-radius: 5px;
-      display: none;
-    }
-
-    #videoContainer {
-      width: 100%;
-      max-width: 600px;
-      margin: 10px 0;
-    }
-
-    #videoContainer video {
-      width: 100%;
-      height: auto;
-    }
-  </style>
-</head>
-
-<body>
-  <input type="file" id="folderInput" webkitdirectory directory multiple>
-  <p id="fileName"></p>
-  <p id="videoNumber"></p>
-  <p id="prevVideoLength"></p>
-  <p id="currentVideoLength"></p>
-  <p id="nextVideoLength"></p>
-  <p id="totalVideoLength"></p>
-  <button id="prevButton" disabled>Previous</button>
-  <button id="nextButton" disabled>Next</button>
-  <button id="copyButton" disabled>Copy Name</button>
-  <input type="number" id="jumpToInput" min="1" placeholder="Enter video number">
-  <button id="jumpToButton">Jump To</button>
-  <button id="pipButton" disabled>Picture-in-Picture</button>
-  <div id="videoContainer"></div>
-  <div id="notification">Copied!</div>
-
-  <script>
-    const folderInput = document.getElementById('folderInput');
-    const fileNameDisplay = document.getElementById('fileName');
-    const videoNumberDisplay = document.getElementById('videoNumber');
-    const prevVideoLengthDisplay = document.getElementById('prevVideoLength');
-    const currentVideoLengthDisplay = document.getElementById('currentVideoLength');
-    const nextVideoLengthDisplay = document.getElementById('nextVideoLength');
-    const totalVideoLengthDisplay = document.getElementById('totalVideoLength');
-    const prevButton = document.getElementById('prevButton');
-    const nextButton = document.getElementById('nextButton');
-    const copyButton = document.getElementById('copyButton');
-    const jumpToInput = document.getElementById('jumpToInput');
-    const jumpToButton = document.getElementById('jumpToButton');
-    const pipButton = document.getElementById('pipButton');
-    const videoContainer = document.getElementById('videoContainer');
-    const notification = document.getElementById('notification');
-
-    let videoFiles = [];
-    let currentIndex = -1;
-    let totalDuration = 0;
-    let currentVideoElement = null;
-
-    folderInput.addEventListener('change', function (event) {
-      const files = Array.from(event.target.files);
-      videoFiles = files.filter(file => file.type.startsWith('video/'));
-      if (videoFiles.length > 0) {
-        currentIndex = 0;
-        calculateTotalDuration();
-        updateUI();
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Folder Video Player</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
       }
-    });
-
-    prevButton.addEventListener('click', function () {
-      if (currentIndex > 0) {
-        currentIndex--;
-        updateUI();
+      #controls {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 10px 0;
       }
-    });
-
-    nextButton.addEventListener('click', function () {
-      if (currentIndex < videoFiles.length - 1) {
-        currentIndex++;
-        updateUI();
+      #videoContainer {
+        width: 100%;
+        max-width: 600px;
+        margin: 10px 0;
       }
-    });
-
-    copyButton.addEventListener('click', function () {
-      if (videoFiles.length > 0) {
-        const fileNameWithoutExtension = getFileNameWithoutExtension(videoFiles[currentIndex].name);
-        copyToClipboard(fileNameWithoutExtension);
-        showNotification(`Copied: ${fileNameWithoutExtension}`);
+      #videoContainer video {
+        width: 100%;
+        height: auto;
       }
-    });
-
-    jumpToButton.addEventListener('click', function () {
-      const jumpToIndex = parseInt(jumpToInput.value) - 1;
-      if (jumpToIndex >= 0 && jumpToIndex < videoFiles.length) {
-        currentIndex = jumpToIndex;
-        updateUI();
-        jumpToInput.value = '';
-        jumpToInput.blur();
-      } else {
-        showNotification('Invalid video number');
+      #notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 10px 20px;
+        background-color: #28a745;
+        color: white;
+        border-radius: 5px;
+        display: none;
       }
-    });
-
-    pipButton.addEventListener('click', function () {
-      if (currentVideoElement) {
-        currentVideoElement.requestPictureInPicture().catch(error => {
-          console.error('Error entering Picture-in-Picture mode:', error);
-        });
+      @media (min-width: 768px) {
+        #controls {
+          flex-direction: row;
+          flex-wrap: wrap;
+          justify-content: center;
+        }
+        #controls button,
+        #controls input {
+          margin: 5px;
+        }
       }
-    });
+    </style>
+  </head>
+  <body>
+    <input type="file" id="folderInput" webkitdirectory directory multiple />
+    <div id="controls">
+      <p id="fileName"></p>
+      <p id="videoNumber"></p>
+      <p id="prevVideoLength"></p>
+      <p id="currentVideoLength"></p>
+      <p id="nextVideoLength"></p>
+      <p id="totalVideoLength"></p>
+      <button id="prevButton" disabled>Previous</button>
+      <button id="nextButton" disabled>Next</button>
+      <button id="copyButton" disabled>Copy Name</button>
+      <input
+        type="number"
+        id="jumpToInput"
+        min="1"
+        placeholder="Enter video number"
+      />
+      <button id="jumpToButton">Jump To</button>
+      <button id="pipButton" disabled>Picture-in-Picture</button>
+    </div>
+    <div id="videoContainer"></div>
+    <div id="notification">Copied!</div>
 
-    function updateUI() {
-      if (videoFiles.length > 0) {
-        const file = videoFiles[currentIndex];
-        fileNameDisplay.textContent = `Selected file name: ${file.name}`;
-        videoNumberDisplay.textContent = `Video ${currentIndex + 1} of ${videoFiles.length}`;
+    <script>
+      const folderInput = document.getElementById("folderInput");
+      const fileNameDisplay = document.getElementById("fileName");
+      const videoNumberDisplay = document.getElementById("videoNumber");
+      const prevVideoLengthDisplay = document.getElementById("prevVideoLength");
+      const currentVideoLengthDisplay =
+        document.getElementById("currentVideoLength");
+      const nextVideoLengthDisplay = document.getElementById("nextVideoLength");
+      const totalVideoLengthDisplay =
+        document.getElementById("totalVideoLength");
+      const prevButton = document.getElementById("prevButton");
+      const nextButton = document.getElementById("nextButton");
+      const copyButton = document.getElementById("copyButton");
+      const jumpToInput = document.getElementById("jumpToInput");
+      const jumpToButton = document.getElementById("jumpToButton");
+      const pipButton = document.getElementById("pipButton");
+      const videoContainer = document.getElementById("videoContainer");
+      const notification = document.getElementById("notification");
 
-        const filePath = URL.createObjectURL(file);
-        videoContainer.innerHTML = ''; // Clear previous video
-        const videoElement = document.createElement('video');
-        videoElement.src = filePath;
-        videoElement.controls = true;
+      let videoFiles = [];
+      let currentIndex = -1;
+      let totalDuration = 0;
+      let currentVideoElement = null;
 
-        videoContainer.appendChild(videoElement);
-
-        currentVideoElement = videoElement; // Update current video element
-
-        videoElement.addEventListener('loadedmetadata', function () {
-          currentVideoLengthDisplay.textContent = `Current video length: ${formatTime(videoElement.duration)}`;
-          if (currentIndex > 0) {
-            const prevVideoPath = URL.createObjectURL(videoFiles[currentIndex - 1]);
-            getVideoLength(prevVideoPath, length => {
-              prevVideoLengthDisplay.textContent = `Previous video length: ${formatTime(length)}`;
-            });
-          } else {
-            prevVideoLengthDisplay.textContent = '';
-          }
-          if (currentIndex < videoFiles.length - 1) {
-            const nextVideoPath = URL.createObjectURL(videoFiles[currentIndex + 1]);
-            getVideoLength(nextVideoPath, length => {
-              nextVideoLengthDisplay.textContent = `Next video length: ${formatTime(length)}`;
-            });
-          } else {
-            nextVideoLengthDisplay.textContent = '';
-          }
-        });
-
-        prevButton.disabled = currentIndex === 0;
-        nextButton.disabled = currentIndex === videoFiles.length - 1;
-        copyButton.disabled = false;
-        pipButton.disabled = false;
-
-        // Auto play the next video when the current video ends
-        videoElement.addEventListener('ended', function () {
-          if (currentIndex < videoFiles.length - 1) {
-            currentIndex++;
-            updateUI();
-          }
-        });
-      } else {
-        fileNameDisplay.textContent = '';
-        videoNumberDisplay.textContent = '';
-        prevVideoLengthDisplay.textContent = '';
-        currentVideoLengthDisplay.textContent = '';
-        nextVideoLengthDisplay.textContent = '';
-        videoContainer.innerHTML = '';
-        prevButton.disabled = true;
-        nextButton.disabled = true;
-        copyButton.disabled = true;
-        pipButton.disabled = true;
-      }
-    }
-
-    function calculateTotalDuration() {
-      totalDuration = 0;
-      let loadedVideos = 0;
-      videoFiles.forEach(file => {
-        const filePath = URL.createObjectURL(file);
-        getVideoLength(filePath, length => {
-          totalDuration += length;
-          loadedVideos++;
-          if (loadedVideos === videoFiles.length) {
-            totalVideoLengthDisplay.textContent = `Total video length: ${formatTime(totalDuration)}`;
-          }
-        });
+      folderInput.addEventListener("change", function (event) {
+        const files = Array.from(event.target.files);
+        videoFiles = files
+          .filter((file) => file.type.startsWith("video/"))
+          .sort((a, b) => a.name.localeCompare(b.name));
+        if (videoFiles.length > 0) {
+          currentIndex = 0;
+          calculateTotalDuration();
+          updateUI();
+        }
       });
-    }
 
-    function getFileNameWithoutExtension(fileName) {
-      return fileName.split('.').slice(0, -1).join('.');
-    }
-
-    function copyToClipboard(text) {
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-    }
-
-    function showNotification(message) {
-      notification.textContent = message;
-      notification.style.display = 'block';
-      setTimeout(() => {
-        notification.style.display = 'none';
-      }, 2000);
-    }
-
-    function formatTime(seconds) {
-      const hours = Math.floor(seconds / 3600);
-      const minutes = Math.floor((seconds % 3600) / 60);
-      seconds = Math.floor(seconds % 60);
-      return `${hours}:${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-    }
-
-    function getVideoLength(filePath, callback) {
-      const tempVideo = document.createElement('video');
-      tempVideo.src = filePath;
-      tempVideo.addEventListener('loadedmetadata', function () {
-        callback(tempVideo.duration);
+      prevButton.addEventListener("click", function () {
+        if (currentIndex > 0) {
+          currentIndex--;
+          updateUI();
+        }
       });
-    }
-  </script>
-</body>
 
+      nextButton.addEventListener("click", function () {
+        if (currentIndex < videoFiles.length - 1) {
+          currentIndex++;
+          updateUI();
+        }
+      });
+
+      copyButton.addEventListener("click", function () {
+        if (videoFiles.length > 0) {
+          const fileNameWithoutExtension = getFileNameWithoutExtension(
+            videoFiles[currentIndex].name
+          );
+          copyToClipboard(fileNameWithoutExtension);
+          showNotification(`Copied: ${fileNameWithoutExtension}`);
+        }
+      });
+
+      jumpToButton.addEventListener("click", function () {
+        const jumpToIndex = parseInt(jumpToInput.value) - 1;
+        if (jumpToIndex >= 0 && jumpToIndex < videoFiles.length) {
+          currentIndex = jumpToIndex;
+          updateUI();
+        } else {
+          showNotification("Invalid video number");
+        }
+      });
+
+      pipButton.addEventListener("click", function () {
+        if (currentVideoElement) {
+          currentVideoElement.requestPictureInPicture().catch((error) => {
+            console.error("Error entering Picture-in-Picture mode:", error);
+          });
+        }
+      });
+
+      function updateUI() {
+        if (videoFiles.length > 0) {
+          const file = videoFiles[currentIndex];
+          fileNameDisplay.textContent = `Selected file name: ${file.name}`;
+          videoNumberDisplay.textContent = `Video ${currentIndex + 1} of ${
+            videoFiles.length
+          }`;
+
+          const filePath = URL.createObjectURL(file);
+          videoContainer.innerHTML = ""; // Clear previous video
+          const videoElement = document.createElement("video");
+          videoElement.src = filePath;
+          videoElement.controls = true;
+          videoContainer.appendChild(videoElement);
+
+          currentVideoElement = videoElement; // Update current video element
+
+          videoElement.addEventListener("loadedmetadata", function () {
+            currentVideoLengthDisplay.textContent = `Current video length: ${formatTime(
+              videoElement.duration
+            )}`;
+            if (currentIndex > 0) {
+              const prevVideoPath = URL.createObjectURL(
+                videoFiles[currentIndex - 1]
+              );
+              getVideoLength(prevVideoPath, (length) => {
+                prevVideoLengthDisplay.textContent = `Previous video length: ${formatTime(
+                  length
+                )}`;
+              });
+            } else {
+              prevVideoLengthDisplay.textContent = "";
+            }
+            if (currentIndex < videoFiles.length - 1) {
+              const nextVideoPath = URL.createObjectURL(
+                videoFiles[currentIndex + 1]
+              );
+              getVideoLength(nextVideoPath, (length) => {
+                nextVideoLengthDisplay.textContent = `Next video length: ${formatTime(
+                  length
+                )}`;
+              });
+            } else {
+              nextVideoLengthDisplay.textContent = "";
+            }
+          });
+
+          prevButton.disabled = currentIndex === 0;
+          nextButton.disabled = currentIndex === videoFiles.length - 1;
+          copyButton.disabled = false;
+          pipButton.disabled = false;
+
+          // Auto play the next video when the current video ends
+          videoElement.addEventListener("ended", function () {
+            if (currentIndex < videoFiles.length - 1) {
+              currentIndex++;
+              updateUI();
+            }
+          });
+        } else {
+          fileNameDisplay.textContent = "";
+          videoNumberDisplay.textContent = "";
+          prevVideoLengthDisplay.textContent = "";
+          currentVideoLengthDisplay.textContent = "";
+          nextVideoLengthDisplay.textContent = "";
+          videoContainer.innerHTML = "";
+          prevButton.disabled = true;
+          nextButton.disabled = true;
+          copyButton.disabled = true;
+          pipButton.disabled = true;
+        }
+      }
+
+      function calculateTotalDuration() {
+        totalDuration = 0;
+        let loadedVideos = 0;
+        videoFiles.forEach((file) => {
+          const filePath = URL.createObjectURL(file);
+          getVideoLength(filePath, (length) => {
+            totalDuration += length;
+            loadedVideos++;
+            if (loadedVideos === videoFiles.length) {
+              totalVideoLengthDisplay.textContent = `Total video length: ${formatTime(
+                totalDuration
+              )}`;
+            }
+          });
+        });
+      }
+
+      function getFileNameWithoutExtension(fileName) {
+        return fileName.split(".").slice(0, -1).join(".");
+      }
+
+      function copyToClipboard(text) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
+
+      function showNotification(message) {
+        notification.textContent = message;
+        notification.style.display = "block";
+        setTimeout(() => {
+          notification.style.display = "none";
+        }, 2000);
+      }
+
+      function formatTime(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        seconds = Math.floor(seconds % 60);
+        return `${hours}:${minutes < 10 ? "0" : ""}${minutes}:${
+          seconds < 10 ? "0" : ""
+        }${seconds}`;
+      }
+
+      function getVideoLength(filePath, callback) {
+        const tempVideo = document.createElement("video");
+        tempVideo.src = filePath;
+        tempVideo.addEventListener("loadedmetadata", function () {
+          callback(tempVideo.duration);
+        });
+      }
+    </script>
+  </body>
 </html>
